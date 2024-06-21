@@ -13,12 +13,11 @@ direction_mapping = {
 }
 
 def custom_round(number):
-    # Check if the absolute value is less than 0.5
     return 0 if abs(number) < 0.5 else round(number)
 
 def format_nightscout_data(data):
-    sgv_mmol = round(data[0]['sgv'] * 0.0555, 1)  # Convert to mmol
-    sgv_10min = round(data[9]['sgv'] * 0.0555, 1)  # Convert to mmol
+    sgv_mmol = round(data[0]['sgv'] * 0.0555, 1)
+    sgv_10min = round(data[9]['sgv'] * 0.0555, 1)
     epoch_timestamp = data[0]['date'] / 1000
     timestamp_datetime = datetime.fromtimestamp(epoch_timestamp)
     current_datetime = datetime.now()
@@ -33,35 +32,52 @@ def format_nightscout_data(data):
     }
 
 def fetch_nightscout_data():
-    # Implement your API request logic here
     response = requests.get(URL)
     return format_nightscout_data(response.json())
 
 def main():
-    # Set the dimensions for a 4.2-inch screen at 96 DPI
-    dpi = 96  # dots per inch
+    dpi = 127
     screen_size_inches = 4.2
     width_pixels = screen_size_inches * dpi
-    aspect_ratio = 9 / 16  # for a 16:9 aspect ratio
+    aspect_ratio = 9 / 16
     height_pixels = width_pixels * aspect_ratio
     data = fetch_nightscout_data()
 
     fig = go.Figure(go.Indicator(
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        value = data["sgv"],
-        mode = "gauge+number+delta",
-        title = {'text': "SGV"},
-        delta = {'reference': data["sgv_10min_ago"]},
-        gauge = {'axis': {'range': [None, 25]},
-                'steps' : [
-                    {'range': [0, 3.8], 'color': "grey"},
-                    {'range': [3.8, 10.8], 'color': "lightgrey"},
-                    {'range': [10.8, 30], 'color': "yellow"}],
-                'bar': {'color': "black"}
-                }))
+        domain={'x': [0, 1], 'y': [0.2, 1]},  # Adjusted domain to make space for annotations
+        value=data["sgv"],
+        mode="gauge+number+delta",
+        title={'text': "SGV"},
+        delta={'reference': data["sgv_10min_ago"]},
+        gauge={
+            'axis': {'range': [None, 25]},
+            'steps': [
+                {'range': [0, 3.8], 'color': "red"},
+                {'range': [3.8, 10.8], 'color': "lightgrey"},
+                {'range': [10.8, 30], 'color': "yellow"}
+            ],
+            'bar': {'color': "black"}
+        }
+    ))
 
     fig.update_layout(
-        margin=dict(l=19, r=19, t=50, b=20)  # Adjust margins to make the gauge larger
+        margin=dict(l=20, r=20, t=50, b=20),
+        annotations=[
+            dict(
+                x=0.5,
+                y=0.095,
+                text=f"Direction: {data['direction']}",
+                showarrow=False,
+                font=dict(size=14)
+            ),
+            dict(
+                x=0.5,
+                y=0.005,
+                text=f"{data['minutes_ago']} minutes ago",
+                showarrow=False,
+                font=dict(size=14)
+            )
+        ]
     )
 
     pio.write_image(fig, './sgv_gauge.png', width=width_pixels, height=height_pixels)
